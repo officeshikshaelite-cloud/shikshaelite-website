@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "About Us | ShikshaElite",
+  description:
+    "Learn about ShikshaElite's vision, mission, and core values in transforming educational institutions and empowering educators globally.",
+};
 
 const values = [
   {

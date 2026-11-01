@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "For Institutions | ShikshaElite",
+  description:
+    "Partner with ShikshaElite to build stronger educational institutions through verified talent acquisition, leadership search, and operational support.",
+};
 
 const advantages = [
   {

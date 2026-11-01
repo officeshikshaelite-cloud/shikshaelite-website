@@ -1,35 +1,5 @@
 import Link from "next/link";
 
-const impactStories = [
-  {
-    type: "featured",
-    value: "40%",
-    metric: "Increase in Faculty Retention",
-    institution: "International School of Bangalore",
-    description:
-      "Restructured the science department leadership, sourcing 12 educators and a new Head of Department within 45 days. By aligning educational philosophies, the institution strengthened faculty stability and improved student testing outcomes.",
-    href: "/case-studies",
-  },
-  {
-    type: "standard",
-    value: "14 Days",
-    metric: "Time-to-Hire Accelerated",
-    institution: "Delhi Public School Society",
-    description:
-      "Deployed a strategic talent acquisition model to secure 5 senior administrative leaders ahead of the academic calendar.",
-    href: "/case-studies",
-  },
-  {
-    type: "standard",
-    value: "100%",
-    metric: "Compliance & Audit Pass Rate",
-    institution: "Premium Global Academy",
-    description:
-      "Conducted a comprehensive academic audit, resulting in stronger regulatory compliance and improved institutional standards.",
-    href: "/case-studies",
-  },
-];
-
 export default function Impact() {
   return (
     <section className="relative overflow-hidden bg-white px-6 py-20 md:px-10 md:py-28">

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Industries() {
   const areas = [
     {
@@ -182,13 +184,13 @@ export default function Industries() {
             </span>
           </p>
 
-          <a
+          <Link
             href="/hire-educators"
             className="inline-flex w-fit items-center gap-3 text-sm font-bold uppercase tracking-wide text-[#071B4D] transition hover:text-[#FFB400]"
           >
             Explore Educator Careers
             <span>→</span>
-          </a>
+          </Link>
 
         </div>
 

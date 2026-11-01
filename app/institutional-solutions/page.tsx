@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Institutional Solutions | ShikshaElite",
+  description:
+    "End-to-end solutions for institutional growth: leadership & principal recruitment, faculty hiring, school setup, and digital education technology.",
+};
 
 const services = [
   {
@@ -6,7 +13,7 @@ const services = [
     title: "Leadership & Principal Recruitment",
     description:
       "We identify and place transformational leaders—Principals, Coordinators, and HODs—who drive academic excellence, operational efficiency, and institutional growth.",
-    href: "/leadership-hiring",
+    href: "/services/principal-leadership-placement",
     linkText: "Explore Leadership",
   },
   {
@@ -14,7 +21,7 @@ const services = [
     title: "Teacher Recruitment Solutions",
     description:
       "Connecting schools with passionate, qualified, and reliable educators. From Pre-Primary to Post Graduate Teachers across all academic subjects.",
-    href: "/teacher-recruitment",
+    href: "/services/teacher-recruitment-placement",
     linkText: "Explore Faculty",
   },
   {
@@ -22,7 +29,7 @@ const services = [
     title: "School Setup & Affiliation",
     description:
       "Turn your vision into a world-class institution. We provide end-to-end support for CBSE, ICSE, and State Board affiliation from concept to campus.",
-    href: "/school-setup",
+    href: "/services/affiliation-compliance",
     linkText: "Explore Setup",
   },
   {
@@ -30,7 +37,7 @@ const services = [
     title: "Technology & Digital Solutions",
     description:
       "Intelligent systems for better education. We implement advanced ERP, HRMS, CRM, website, and digital solutions to streamline institutional operations.",
-    href: "/technology-solutions",
+    href: "/services/technology-digital-solutions",
     linkText: "Explore Tech",
   },
 ];

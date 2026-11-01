@@ -175,6 +175,30 @@ const services = {
 
 type ServiceSlug = keyof typeof services;
 
+export function generateStaticParams() {
+  return Object.keys(services).map((slug) => ({
+    slug,
+  }));
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  if (!(slug in services)) {
+    return {
+      title: "Service Not Found | ShikshaElite",
+    };
+  }
+  const service = services[slug as ServiceSlug];
+  return {
+    title: `${service.title} | ShikshaElite`,
+    description: service.intro,
+  };
+}
+
 export default async function ServiceDetailPage({
   params,
 }: {

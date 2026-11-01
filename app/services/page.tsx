@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Complete Educational Services | ShikshaElite",
+  description:
+    "Explore comprehensive institutional solutions: faculty placement, leadership recruitment, school setup & affiliation, technology systems, and operational consulting.",
+};
 
 const managementServices = [
   {

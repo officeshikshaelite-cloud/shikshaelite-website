@@ -216,10 +216,10 @@ export default function Navbar() {
 
           {/* USER LOGIN */}
           <Link
-            href="/login"
+            href="/educator/login"
             onClick={closeMenus}
-            aria-label="Login"
-            title="Login"
+            aria-label="Educator Login"
+            title="Educator Login"
             className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-300 text-[#071B4D] transition hover:border-[#F4B400] hover:bg-[#F4B400]"
           >
             <svg
@@ -658,11 +658,11 @@ export default function Navbar() {
             </div>
 
             <Link
-              href="/login"
+              href="/educator/login"
               onClick={closeMenus}
               className="flex items-center gap-3 px-4 py-3 font-semibold text-[#071B4D]"
             >
-              Login
+              Educator Login
             </Link>
 
             <Link

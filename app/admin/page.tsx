@@ -12,9 +12,10 @@ export default function AdminLogin() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // For now, we are using a hardcoded password. 
-    // In the future, this will connect to a database.
-    if (username === "admin" && password === "EliteAdmin123!") {
+    const expectedUsername = process.env.NEXT_PUBLIC_ADMIN_USERNAME || "admin";
+    const expectedPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "EliteAdmin123!";
+
+    if (username === expectedUsername && password === expectedPassword) {
       // Success! Send them to the dashboard
       router.push("/admin/dashboard");
     } else {

@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Educator Careers & Talent Network | ShikshaElite",
+  description:
+    "Join the ShikshaElite Educator Network. Discover verified teaching and academic leadership opportunities with top institutions across India and abroad.",
+};
 
 const advantages = [
   {
