@@ -56,6 +56,21 @@ export async function POST(req: Request) {
       );
     }
 
+    // Check database configuration
+    if (
+      !process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
+      !process.env.FIREBASE_API_KEY
+    ) {
+      console.error("Firebase API key is missing.");
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Database service is not configured.",
+        },
+        { status: 500 }
+      );
+    }
+
     // --------------------------------------------------
     // 1. SAVE LEAD TO FIRESTORE
     // --------------------------------------------------
