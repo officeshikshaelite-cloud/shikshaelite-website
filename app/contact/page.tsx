@@ -156,13 +156,6 @@ export default function ContactPage() {
 
                   <div className="mt-4 space-y-2">
                     <a
-                      href="tel:+917760917509"
-                      className="block text-lg font-semibold text-white transition hover:text-[#FFB400]"
-                    >
-                      +91 77609 17509
-                    </a>
-
-                    <a
                       href="tel:+919364878590"
                       className="block text-lg font-semibold text-white transition hover:text-[#FFB400]"
                     >
@@ -199,7 +192,7 @@ export default function ContactPage() {
                   </p>
 
                   <p className="mt-4 text-base leading-7 text-blue-100">
-                    Kalaburagi, Karnataka, India
+                    Bengaluru, Karnataka, India
                   </p>
                 </div>
 
