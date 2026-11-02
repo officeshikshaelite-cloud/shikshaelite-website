@@ -5,30 +5,83 @@ import { FormEvent, useState } from "react";
 
 export default function ContactPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  // Form field state to preserve entered data when recoverable errors occur
+  const [formData, setFormData] = useState({
+    type: "",
+    name: "",
+    phone: "",
+    email: "",
+    message: "",
+  });
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    // Prevent duplicate accidental submissions
+    if (isSubmitting) return;
+
+    setStatus(null);
+
+    // Client-side validation
+    const trimmedName = formData.name.trim();
+    const trimmedEmail = formData.email.trim();
+    const trimmedPhone = formData.phone.trim();
+    const trimmedMessage = formData.message.trim();
+    const selectedType = formData.type.trim();
+
+    if (!selectedType) {
+      setStatus({ type: "error", message: "Please select whether you represent An Institution or An Educator." });
+      return;
+    }
+
+    if (!trimmedName || trimmedName.length < 2) {
+      setStatus({ type: "error", message: "Please enter your full name (at least 2 characters)." });
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+      setStatus({ type: "error", message: "Please provide a valid email address." });
+      return;
+    }
+
+    const digitsOnly = trimmedPhone.replace(/\D/g, "");
+    if (!trimmedPhone || digitsOnly.length < 7 || digitsOnly.length > 15) {
+      setStatus({ type: "error", message: "Please enter a valid phone number (7 to 15 digits)." });
+      return;
+    }
+
+    if (!trimmedMessage || trimmedMessage.length < 5) {
+      setStatus({ type: "error", message: "Please enter your requirement message (at least 5 characters)." });
+      return;
+    }
+
     setIsSubmitting(true);
-    setStatus("");
 
     const form = event.currentTarget;
-    const formData = new FormData(form);
-
-    const type = String(formData.get("type") || "");
+    const formElements = new FormData(form);
+    const honeypot = String(formElements.get("website_source_ref") || "");
 
     const payload = {
-      formType: type === "institution" ? "Management" : "Educators",
-      name: String(formData.get("name") || ""),
-      email: String(formData.get("email") || ""),
-      phone: String(formData.get("phone") || ""),
-      location: "Website Contact Form",
-      details: String(formData.get("message") || ""),
+      type: selectedType,
+      name: trimmedName,
+      email: trimmedEmail,
+      phone: trimmedPhone,
+      message: trimmedMessage,
+      honeypot,
     };
 
     try {
-      const response = await fetch("/api/submit-form", {
+      const response = await fetch("/api/contact/submit", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -36,53 +89,49 @@ export default function ContactPage() {
         body: JSON.stringify(payload),
       });
 
-      const text = await response.text();
+      const data = await response.json().catch(() => null);
 
-      if (!response.ok) {
-        console.error("Server response:", text);
+      if (!response.ok || !data?.success) {
+        const errorMsg =
+          data?.message ||
+          data?.errors?.[0] ||
+          data?.error ||
+          `Submission failed (${response.status}). Please try again.`;
 
-        throw new Error(
-          text.trim()
-            ? `Server error (${response.status}): ${text.slice(0, 300)}`
-            : `Server error (${response.status}): Empty response from server.`
-        );
+        // Preserve form data on error
+        setStatus({
+          type: "error",
+          message: errorMsg,
+        });
+        return;
       }
 
-      let result: {
-        success?: boolean;
-        message?: string;
-        error?: string;
-      };
+      // Success: safely recorded
+      setStatus({
+        type: "success",
+        message:
+          "Thank you for contacting Shiksha Elite! Your enquiry has been successfully submitted. Our team will contact you shortly.",
+      });
 
-      try {
-        result = JSON.parse(text);
-      } catch {
-        console.error("Invalid JSON returned by server:", text);
-
-        throw new Error(
-          "The server returned an invalid response. Check the VS Code terminal."
-        );
-      }
-
-      if (!result.success) {
-        throw new Error(
-          result.error || result.message || "Submission failed."
-        );
-      }
-
-      setStatus(
-        "Thank you. Your request has been submitted successfully."
-      );
-
+      // Clear the form only after successful persistence
+      setFormData({
+        type: "",
+        name: "",
+        phone: "",
+        email: "",
+        message: "",
+      });
       form.reset();
     } catch (error) {
       console.error("Form submission error:", error);
-
-      setStatus(
-        error instanceof Error
-          ? error.message
-          : "We couldn't submit your request right now."
-      );
+      // Preserve form data on network error
+      setStatus({
+        type: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Network error. Please check your connection and try again.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -235,7 +284,17 @@ export default function ContactPage() {
               <form
                 className="mt-10 space-y-6"
                 onSubmit={handleSubmit}
+                noValidate
               >
+                {/* Anti-spam honeypot (hidden from real users, traps automated bots) */}
+                <div style={{ display: "none" }} aria-hidden="true">
+                  <input
+                    type="text"
+                    name="website_source_ref"
+                    tabIndex={-1}
+                    autoComplete="off"
+                  />
+                </div>
 
                 <div>
                   <label
@@ -248,7 +307,8 @@ export default function ContactPage() {
                   <select
                     id="type"
                     name="type"
-                    defaultValue=""
+                    value={formData.type}
+                    onChange={handleInputChange}
                     required
                     className="w-full border border-gray-300 bg-white px-4 py-3.5 text-sm text-gray-700 outline-none focus:border-[#FFB400]"
                   >
@@ -278,6 +338,8 @@ export default function ContactPage() {
                       id="name"
                       name="name"
                       type="text"
+                      value={formData.name}
+                      onChange={handleInputChange}
                       required
                       placeholder="Your full name"
                       className="w-full border border-gray-300 px-4 py-3.5 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-[#FFB400]"
@@ -296,6 +358,8 @@ export default function ContactPage() {
                       id="phone"
                       name="phone"
                       type="tel"
+                      value={formData.phone}
+                      onChange={handleInputChange}
                       required
                       placeholder="+91"
                       className="w-full border border-gray-300 px-4 py-3.5 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-[#FFB400]"
@@ -316,6 +380,8 @@ export default function ContactPage() {
                     id="email"
                     name="email"
                     type="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
                     required
                     placeholder="name@company.com"
                     className="w-full border border-gray-300 px-4 py-3.5 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-[#FFB400]"
@@ -334,6 +400,8 @@ export default function ContactPage() {
                     id="message"
                     name="message"
                     rows={6}
+                    value={formData.message}
+                    onChange={handleInputChange}
                     required
                     placeholder="Tell us about your requirement..."
                     className="w-full resize-none border border-gray-300 px-4 py-3.5 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-[#FFB400]"
@@ -353,12 +421,12 @@ export default function ContactPage() {
                 {status && (
                   <p
                     className={`text-sm font-medium ${
-                      status.includes("successfully")
+                      status.type === "success"
                         ? "text-green-600"
                         : "text-red-600"
                     }`}
                   >
-                    {status}
+                    {status.message}
                   </p>
                 )}
 
