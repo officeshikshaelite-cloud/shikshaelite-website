@@ -114,7 +114,7 @@ export default function Footer() {
                 </p>
 
                 <p className="mt-2 text-sm leading-6 text-gray-300">
-                  Kalaburagi, Karnataka, India
+                  Bengaluru, Karnataka, India
                 </p>
               </div>
 
@@ -146,13 +146,6 @@ export default function Footer() {
                 </p>
 
                 <div className="mt-2 space-y-1">
-                  <a
-                    href="tel:+917760917509"
-                    className="block text-sm text-gray-300 transition hover:text-[#FFB400]"
-                  >
-                    +91 77609 17509
-                  </a>
-
                   <a
                     href="tel:+919364878590"
                     className="block text-sm text-gray-300 transition hover:text-[#FFB400]"

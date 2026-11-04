@@ -106,11 +106,18 @@ export default function ContactPage() {
         return;
       }
 
-      // Success: safely recorded
+      // Success: safely recorded per Phase 5
+      // If Google Sheets synced: displays full confirmation
+      // If Google Sheets pending/failed: displays "Your enquiry has been received successfully. Our team will process your request shortly."
+      const successMessage =
+        data?.message ||
+        (data?.statuses?.googleSheets === "SYNCED"
+          ? "Thank you for contacting Shiksha Elite! Your enquiry has been successfully submitted. Our team will contact you shortly."
+          : "Your enquiry has been received successfully. Our team will process your request shortly.");
+
       setStatus({
         type: "success",
-        message:
-          "Thank you for contacting Shiksha Elite! Your enquiry has been successfully submitted. Our team will contact you shortly.",
+        message: successMessage,
       });
 
       // Clear the form only after successful persistence

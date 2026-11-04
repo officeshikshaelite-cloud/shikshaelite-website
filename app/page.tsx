@@ -91,11 +91,11 @@ const advantages = [
 
 const stats = [
   {
-    value: "10+",
+    value: "500+",
     label: "Schools Partnered",
   },
   {
-    value: "25+",
+    value: "1000+",
     label: "Candidates Placed",
   },
   {

@@ -87,7 +87,7 @@ function startMockAppsScriptServer() {
               JSON.stringify({
                 success: true,
                 duplicate: true,
-                message: "Enquiry already recorded. Duplicate row skipped.",
+                message: "Enquiry successfully stored",
                 submission_id: data.submission_id,
               })
             );
@@ -101,7 +101,7 @@ function startMockAppsScriptServer() {
           res.end(
             JSON.stringify({
               success: true,
-              message: "Enquiry successfully recorded in Google Sheets.",
+              message: "Enquiry successfully stored",
               submission_id: data.submission_id,
               row_index: rowIndex,
             })

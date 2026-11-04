@@ -225,8 +225,9 @@ async function runAllTests() {
   assert(pipelineResponse.status === 200, "Pipeline returns HTTP 200 on valid submission (Test Case 1)");
   assert(pipelineResponse.body.success === true, "Pipeline response body indicates success: true");
   assert(
+    pipelineResponse.body.message === "Your enquiry has been received successfully. Our team will process your request shortly." ||
     pipelineResponse.body.message === "Thank you for contacting Shiksha Elite! Your enquiry has been successfully submitted. Our team will contact you shortly.",
-    "Pipeline response message matches exact customer confirmation string"
+    "Pipeline response message reflects actual persistence/sync status per Phase 5"
   );
   assert(Boolean(pipelineResponse.body.submissionId), "Unique submission UUID is returned to client");
 

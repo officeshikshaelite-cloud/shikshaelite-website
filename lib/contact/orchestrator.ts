@@ -196,18 +196,24 @@ export async function processContactSubmission(
   await updateSubmissionStatus(submissionId, statusUpdates);
 
   console.log(
-    `[Submission ${submissionId}] Summary: AdminEmail=${adminEmailStatus}, CustomerEmail=${customerEmailStatus}, Excel=${excelSyncStatus}, GoogleSheets=${googleSheetsSyncStatus}`
+    `[Contact Form] [Submission ${submissionId}] Summary: AdminEmail=${adminEmailStatus}, CustomerEmail=${customerEmailStatus}, Excel=${excelSyncStatus}, GoogleSheets=${googleSheetsSyncStatus}`
   );
 
   // Step 12: Return response to the frontend
-  // Even if email or external spreadsheet sync had transient issues, the customer's enquiry is safely persisted.
+  // Per Phase 5: If backend safely stored enquiry but Google Sheets synchronization fails:
+  // display: "Your enquiry has been received successfully. Our team will process your request shortly."
+  // If Google Sheets succeeds: display full confirmation.
+  const responseMessage =
+    googleSheetsSyncStatus === "SYNCED"
+      ? "Thank you for contacting Shiksha Elite! Your enquiry has been successfully submitted. Our team will contact you shortly."
+      : "Your enquiry has been received successfully. Our team will process your request shortly.";
+
   return {
     status: 200,
     body: {
       success: true,
       submissionId,
-      message:
-        "Thank you for contacting Shiksha Elite! Your enquiry has been successfully submitted. Our team will contact you shortly.",
+      message: responseMessage,
       statuses: {
         submission: "RECEIVED",
         adminEmail: adminEmailStatus,

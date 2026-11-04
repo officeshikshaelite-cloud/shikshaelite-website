@@ -2,13 +2,13 @@
  * Shiksha Elite - Contact Form Google Sheets Automation
  * Google Apps Script Web App Implementation
  * 
- * Spreadsheet: "Shiksha Elite - Contact Enquiries"
- * Worksheet:   "Contact Enquiries"
- * Timezone:    Asia/Kolkata (IST)
+ * Target Spreadsheet: "Shiksha Elite - Contact Enquiries"
+ * Target Worksheet:   "Contact Enquiries"
+ * Timezone:            Asia/Kolkata (IST)
  */
 
-// Default Configuration (Can also be set in Script Properties)
-var SPREADSHEET_NAME = "Shiksha Elite - Contact Enquiries";
+// Spreadsheet ID from Shiksha Elite production workbook
+var DEFAULT_SPREADSHEET_ID = "1n-skSg2sa8bipdEIdD20E8Crwpx8UOGRuT0IazhwjJM";
 var SHEET_NAME = "Contact Enquiries";
 var TIMEZONE = "Asia/Kolkata";
 
@@ -32,9 +32,20 @@ var HEADERS = [
  * GET request returns basic status without exposing sensitive data
  */
 function doGet(e) {
+  var spreadsheetStatus = "UNKNOWN";
+  try {
+    var ss = getTargetSpreadsheet();
+    if (ss) {
+      spreadsheetStatus = "CONNECTED: " + ss.getName();
+    }
+  } catch (err) {
+    spreadsheetStatus = "ERROR: " + err.toString();
+  }
+
   return createJsonResponse({
     status: "ok",
     service: "Shiksha Elite Google Sheets Automation",
+    spreadsheet: spreadsheetStatus,
     timestamp: Utilities.formatDate(new Date(), TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX"),
     active: true
   });
@@ -52,39 +63,46 @@ function doPost(e) {
     if (!lockAcquired) {
       return createJsonResponse({
         success: false,
-        error: "Server busy. Could not acquire lock for writing.",
-        status: "BUSY"
+        message: "Unable to store enquiry",
+        error_code: "LOCK_TIMEOUT"
       }, 503);
     }
 
     // 1. Validate payload presence
-    if (!e || !e.postData || !e.postData.contents) {
+    var rawContents = null;
+    if (e && e.postData && e.postData.contents) {
+      rawContents = e.postData.contents;
+    } else if (e && e.parameter && Object.keys(e.parameter).length > 0) {
+      rawContents = JSON.stringify(e.parameter);
+    }
+
+    if (!rawContents) {
       return createJsonResponse({
         success: false,
-        error: "Empty or invalid request body.",
-        status: "BAD_REQUEST"
+        message: "Unable to store enquiry",
+        error_code: "EMPTY_PAYLOAD"
       }, 400);
     }
 
     var payload;
     try {
-      payload = JSON.parse(e.postData.contents);
+      payload = JSON.parse(rawContents);
     } catch (parseError) {
       return createJsonResponse({
         success: false,
-        error: "Malformed JSON payload: " + parseError.toString(),
-        status: "BAD_REQUEST"
+        message: "Unable to store enquiry",
+        error_code: "INVALID_JSON"
       }, 400);
     }
 
-    // 2. Authenticate Shared Secret
+    // 2. Authenticate Shared Secret if configured in Script Properties
     var expectedSecret = getScriptProperty("GOOGLE_APPS_SCRIPT_SECRET") || getScriptProperty("SHARED_SECRET");
-    if (expectedSecret) {
-      if (!payload.secret || payload.secret !== expectedSecret) {
+    if (expectedSecret && expectedSecret.trim() !== "") {
+      if (!payload.secret || payload.secret.trim() !== expectedSecret.trim()) {
         return createJsonResponse({
           success: false,
-          error: "Unauthorized: Invalid or missing shared secret token.",
-          status: "UNAUTHORIZED"
+          message: "Unable to store enquiry",
+          error_code: "UNAUTHORIZED"
         }, 401);
       }
     }
@@ -98,33 +116,42 @@ function doPost(e) {
     if (!submissionId || !fullName || !email || !phone) {
       return createJsonResponse({
         success: false,
-        error: "Missing mandatory fields (submission_id, full_name, email_address, phone_number).",
-        status: "BAD_REQUEST"
+        message: "Unable to store enquiry",
+        error_code: "MISSING_MANDATORY_FIELDS"
       }, 400);
     }
 
-    // 4. Access or open the Spreadsheet
+    // 4. Access target Spreadsheet
     var spreadsheet = getTargetSpreadsheet();
     if (!spreadsheet) {
+      Logger.log("ERROR: Target spreadsheet could not be opened.");
       return createJsonResponse({
         success: false,
-        error: "Target Google Spreadsheet could not be opened. Check SPREADSHEET_ID in Script Properties.",
-        status: "INTERNAL_ERROR"
+        message: "Unable to store enquiry",
+        error_code: "SPREADSHEET_NOT_FOUND"
       }, 500);
     }
 
     // 5. Access or create the "Contact Enquiries" worksheet
     var sheet = getOrCreateWorksheet(spreadsheet, SHEET_NAME);
+    if (!sheet) {
+      Logger.log("ERROR: Target worksheet could not be resolved.");
+      return createJsonResponse({
+        success: false,
+        message: "Unable to store enquiry",
+        error_code: "WORKSHEET_NOT_FOUND"
+      }, 500);
+    }
 
     // 6. Idempotency Check: Prevent duplicate submissions using Submission ID
     var isDuplicate = checkDuplicateSubmission(sheet, submissionId);
     if (isDuplicate) {
+      Logger.log("Duplicate submission ID: " + submissionId + " - Skipping row append.");
       return createJsonResponse({
         success: true,
-        duplicate: true,
-        message: "Enquiry already recorded. Duplicate row skipped.",
+        message: "Enquiry successfully stored",
         submission_id: submissionId,
-        status: "ALREADY_SYNCED"
+        duplicate: true
       });
     }
 
@@ -133,7 +160,7 @@ function doPost(e) {
     var submissionDate = payload.submission_date || Utilities.formatDate(now, TIMEZONE, "dd/MM/yyyy");
     var submissionTime = payload.submission_time || Utilities.formatDate(now, TIMEZONE, "hh:mm:ss a 'IST'");
 
-    // 8. Prepare and sanitize row values (Prevents formula injection like '=cmd|' or '=SUM')
+    // 8. Prepare and sanitize row values (neutralizes formula injection: =, +, -, @)
     var rowValues = [
       sanitizeForSpreadsheet(submissionId),
       sanitizeForSpreadsheet(submissionDate),
@@ -156,27 +183,29 @@ function doPost(e) {
     // Format new row readability (align top, wrap message text)
     try {
       sheet.getRange(newRowIndex, 1, 1, HEADERS.length).setVerticalAlignment("top");
-      sheet.getRange(newRowIndex, 8).setWrap(true); // Requirement message wrap
+      sheet.getRange(newRowIndex, 8).setWrap(true);
     } catch (formatErr) {
-      // Non-fatal formatting issue
+      // Non-fatal
     }
 
+    Logger.log("SUCCESS: Recorded enquiry " + submissionId + " at row " + newRowIndex);
+
+    // Return structured success response required by Phase 2
     return createJsonResponse({
       success: true,
-      message: "Enquiry successfully recorded in Google Sheets.",
+      message: "Enquiry successfully stored",
       submission_id: submissionId,
-      row_index: newRowIndex,
-      status: "SYNCED"
+      row_index: newRowIndex
     });
 
   } catch (globalError) {
+    Logger.log("CRITICAL ERROR: " + globalError.toString());
     return createJsonResponse({
       success: false,
-      error: "Unexpected Apps Script error: " + globalError.toString(),
-      status: "INTERNAL_ERROR"
+      message: "Unable to store enquiry",
+      error_code: "SHEETS_WRITE_FAILED"
     }, 500);
   } finally {
-    // Always release lock
     lock.releaseLock();
   }
 }
@@ -185,7 +214,7 @@ function doPost(e) {
  * Access the target spreadsheet by ID or Active instance
  */
 function getTargetSpreadsheet() {
-  var spreadsheetId = getScriptProperty("SPREADSHEET_ID");
+  var spreadsheetId = getScriptProperty("SPREADSHEET_ID") || DEFAULT_SPREADSHEET_ID;
   if (spreadsheetId && spreadsheetId.trim() !== "") {
     try {
       return SpreadsheetApp.openById(spreadsheetId.trim());
@@ -194,7 +223,6 @@ function getTargetSpreadsheet() {
     }
   }
 
-  // Fallback to active spreadsheet (if script is bound to the sheet)
   try {
     return SpreadsheetApp.getActiveSpreadsheet();
   } catch (e) {
@@ -204,19 +232,51 @@ function getTargetSpreadsheet() {
 }
 
 /**
- * Retrieve or create the worksheet with styled headers
+ * Retrieve or create the worksheet with styled headers.
+ * If user has "Sheet1" with "Submission ID" in row 1, seamlessly use or rename it!
  */
 function getOrCreateWorksheet(spreadsheet, sheetName) {
   var sheet = spreadsheet.getSheetByName(sheetName);
-  if (!sheet) {
-    sheet = spreadsheet.insertSheet(sheetName);
+  if (sheet) {
+    ensureHeaders(sheet);
+    return sheet;
   }
 
-  // Ensure header row exists
+  // Check if first sheet already has "Submission ID" in A1 (e.g. default Sheet1)
+  var sheets = spreadsheet.getSheets();
+  if (sheets.length > 0) {
+    var firstSheet = sheets[0];
+    if (firstSheet.getLastRow() >= 1) {
+      try {
+        var firstCell = firstSheet.getRange(1, 1).getValue().toString().trim();
+        if (firstCell === "Submission ID") {
+          try {
+            firstSheet.setName(sheetName);
+          } catch (renameErr) {
+            // Non-fatal
+          }
+          ensureHeaders(firstSheet);
+          return firstSheet;
+        }
+      } catch (checkErr) {
+        // Non-fatal
+      }
+    }
+  }
+
+  // Create new worksheet if not found
+  sheet = spreadsheet.insertSheet(sheetName);
+  ensureHeaders(sheet);
+  return sheet;
+}
+
+/**
+ * Ensure headers exist and are styled
+ */
+function ensureHeaders(sheet) {
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(HEADERS);
 
-    // Style the header row with Shiksha Elite corporate colors
     var headerRange = sheet.getRange(1, 1, 1, HEADERS.length);
     headerRange.setBackground("#071B4D"); // Shiksha Elite Navy
     headerRange.setFontColor("#FFFFFF"); // White text
@@ -226,10 +286,8 @@ function getOrCreateWorksheet(spreadsheet, sheetName) {
     headerRange.setVerticalAlignment("middle");
     sheet.setRowHeight(1, 36);
 
-    // Freeze header row
     sheet.setFrozenRows(1);
 
-    // Set practical column widths
     sheet.setColumnWidth(1, 260); // Submission ID
     sheet.setColumnWidth(2, 110); // Date
     sheet.setColumnWidth(3, 130); // Time
@@ -243,8 +301,6 @@ function getOrCreateWorksheet(spreadsheet, sheetName) {
     sheet.setColumnWidth(11, 130); // Sub Status
     sheet.setColumnWidth(12, 180); // Source Website
   }
-
-  return sheet;
 }
 
 /**
@@ -254,7 +310,6 @@ function checkDuplicateSubmission(sheet, submissionId) {
   var lastRow = sheet.getLastRow();
   if (lastRow <= 1) return false;
 
-  // Read Column 1 (Submission IDs) from row 2 down to lastRow
   var idRange = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
   for (var i = 0; i < idRange.length; i++) {
     if (idRange[i][0] && idRange[i][0].toString().trim() === submissionId) {
@@ -265,13 +320,11 @@ function checkDuplicateSubmission(sheet, submissionId) {
 }
 
 /**
- * Neutralize formula injection risks (=, +, -, @, tab, newline prefix)
+ * Neutralize formula injection risks (=, +, -, @)
  */
 function sanitizeForSpreadsheet(value) {
   if (value === null || value === undefined) return "";
   var str = value.toString().trim();
-  
-  // If string begins with formula trigger character, prepend a single quote
   var firstChar = str.charAt(0);
   if (firstChar === "=" || firstChar === "+" || firstChar === "-" || firstChar === "@") {
     return "'" + str;
@@ -293,7 +346,7 @@ function getScriptProperty(key) {
 /**
  * Helper to build JSON responses via ContentService
  */
-function createJsonResponse(data) {
+function createJsonResponse(data, statusCode) {
   var output = ContentService.createTextOutput(JSON.stringify(data));
   output.setMimeType(ContentService.MimeType.JSON);
   return output;
@@ -307,10 +360,9 @@ function createJsonResponse(data) {
 function setupSpreadsheet() {
   var ss = getTargetSpreadsheet();
   if (!ss) {
-    Logger.log("ERROR: Open this script from the spreadsheet (Extensions > Apps Script) or set SPREADSHEET_ID in Script Properties.");
+    Logger.log("ERROR: Could not open spreadsheet ID: " + DEFAULT_SPREADSHEET_ID);
     return;
   }
-
   var sheet = getOrCreateWorksheet(ss, SHEET_NAME);
-  Logger.log("SUCCESS: Initialized worksheet '" + SHEET_NAME + "' in spreadsheet '" + ss.getName() + "'.");
+  Logger.log("SUCCESS: Initialized worksheet '" + sheet.getName() + "' in spreadsheet '" + ss.getName() + "'.");
 }
